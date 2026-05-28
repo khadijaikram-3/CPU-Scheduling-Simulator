@@ -3,7 +3,7 @@
 An interactive web-based simulation tool for visualizing CPU scheduling algorithms including FCFS, SRTF (Preemptive SJF), and Multilevel Feedback Queue (MLFQ).
 
 ## 🚀 Live Demo
-
+https://khadijaikram-3.github.io/CPU-Scheduling-Simulator/
 
 ## 📋 Features
 
