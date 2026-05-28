@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPU Scheduling Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base:       #F0F4F8;
+    --bg-panel:      #FFFFFF;
+    --bg-surface:    #F7F9FC;
+    --bg-input:      #EEF2F7;
+    --border:        #D0DAE8;
+    --border-focus:  #3B82F6;
+    --text-primary:  #0F1C2E;
+    --text-secondary:#4A5E78;
+    --text-muted:    #7A90A8;
+    --accent-blue:   #2563EB;
+    --accent-blue-lt:#DBEAFE;
+    --accent-teal:   #0D9488;
+    --accent-teal-lt:#CCFBF1;
+    --accent-violet: #7C3AED;
+    --accent-amber:  #D97706;
+    --accent-amber-lt:#FEF3C7;
+    --accent-rose:   #E11D48;
+    --gantt-idle:    #E2E8F0;
+    --radius-sm:     8px;
+    --radius-md:     12px;
+    --radius-lg:     18px;
+    --shadow-sm:     0 1px 3px rgba(15,28,46,0.08), 0 1px 2px rgba(15,28,46,0.06);
+    --shadow-md:     0 4px 16px rgba(15,28,46,0.10), 0 1px 4px rgba(15,28,46,0.06);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-blue-lt);
+    color: var(--accent-blue);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 99px;
+    margin-bottom: 0.75rem;
+  }
+  .header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+  .header h1 span {
+    color: var(--accent-blue);
+  }
+  .header p {
+    margin-top: 0.4rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  /* ── Layout ── */
+  .dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: flex-start;
+  }
+  .control-panel { flex: 1.1; min-width: 270px; }
+  .visual-panel  { flex: 2.4; min-width: 480px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .card-icon.blue   { background: var(--accent-blue-lt); }
+  .card-icon.teal   { background: var(--accent-teal-lt); }
+  .card-icon.amber  { background: var(--accent-amber-lt); }
+  .card-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  /* ── Process Table ── */
+  .proc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .proc-table th {
+    padding: 0.45rem 0.5rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .proc-table td {
+    padding: 0.4rem 0.35rem;
+    text-align: center;
+    border-bottom: 1px solid var(--bg-surface);
+  }
+  .pid-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .proc-table input[type="number"] {
+    background: var(--bg-input);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.5rem;
+    width: 60px;
+    text-align: center;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    outline: none;
+    transition: border 0.18s, background 0.18s;
+  }
+  .proc-table input[type="number"]:focus {
+    border-color: var(--border-focus);
+    background: #fff;
+  }
+  .row-btns { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.75rem; }
+
+  /* ── Buttons ── */
+  .btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1.1rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-primary {
+    background: var(--accent-blue);
+    color: #fff;
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.8rem;
+    padding: 0.65rem;
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+  }
+  .btn-primary:hover { background: #1D4ED8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.35); }
+  .btn-secondary {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+  }
+  .btn-secondary:hover { background: var(--bg-input); color: var(--text-primary); }
+  .btn-sm {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.75rem;
+    font-size: 0.78rem;
+    border-radius: 6px;
+  }
+  .btn-sm:hover { border-color: var(--accent-blue); color: var(--accent-blue); background: var(--accent-blue-lt); }
+  .btn-danger-sm {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.78rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-danger-sm:hover { background: #FEE2E2; color: var(--accent-rose); border-color: #FECACA; }
+
+  /* ── Select ── */
+  select {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    border: 1.5px solid transparent;
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    outline: none;
+    cursor: pointer;
+    transition: border 0.18s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5E78' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  select:focus { border-color: var(--border-focus); background-color: #fff; }
+
+  /* ── MLFQ Params ── */
+  .mlfq-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+    margin-bottom: 0.6rem;
+  }
+  .mlfq-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mlfq-label input {
+    background: var(--bg-input);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.6rem;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    outline: none;
+    transition: border 0.18s;
+    width: 100%;
+  }
+  .mlfq-label input:focus { border-color: var(--border-focus); background: #fff; }
+  .aging-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+  }
+  .aging-row input {
+    background: var(--bg-input);
+    border: 1.5px solid transparent;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    width: 60px;
+    outline: none;
+    transition: border 0.18s;
+  }
+  .aging-row input:focus { border-color: var(--border-focus); background: #fff; }
+
+  /* ── Gantt ── */
+  .gantt-wrapper {
+    overflow-x: auto;
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+  }
+  canvas {
+    display: block;
+    border-radius: 8px;
+    background: var(--bg-surface);
+  }
+
+  /* ── Step Controls ── */
+  .step-controls {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .step-controls .btn-ctrl {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .step-controls .btn-ctrl:hover { background: var(--accent-blue-lt); border-color: var(--accent-blue); color: var(--accent-blue); }
+  .step-controls .btn-ctrl.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+  .slider-wrap { flex: 1; min-width: 100px; }
+  input[type="range"] {
+    width: 100%;
+    appearance: none;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
+  }
+  .step-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ── Explanation box ── */
+  .explanation-box {
+    background: var(--text-primary);
+    color: #CBD5E1;
+    border-radius: var(--radius-md);
+    padding: 0.9rem 1.1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    margin-top: 0.85rem;
+    line-height: 1.65;
+    min-height: 54px;
+    border: 1px solid #1E3A5F;
+  }
+  .explanation-box .hi  { color: #60A5FA; font-weight: 700; }
+  .explanation-box .ok  { color: #34D399; font-weight: 700; }
+  .explanation-box .step-num {
+    display: inline-block;
+    background: rgba(96,165,250,0.15);
+    color: #60A5FA;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+
+  /* ── Stats ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.55rem;
+    margin-top: 0.9rem;
+  }
+  .stat-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.75rem;
+  }
+  .stat-card .s-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+  }
+  .stat-card .s-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .stat-card .s-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 1px;
+  }
+
+  /* ── Queue Viz ── */
+  .queue-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; flex-wrap: wrap; }
+  .queue-label {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--accent-blue); background: var(--accent-blue-lt);
+    border-radius: 99px; padding: 0.15rem 0.7rem; min-width: 36px; text-align: center;
+  }
+  .q-badge {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 99px;
+    padding: 0.1rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── NEW: Metrics summary bar ── */
+  .metrics-bar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 100%);
+    border: 1px solid #BFDBFE;
+    border-radius: var(--radius-md);
+    margin-bottom: 0.85rem;
+  }
+  .metric-chip {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; font-weight: 600; color: var(--text-primary);
+  }
+  .metric-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .metric-chip .val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent-blue); }
+  .metric-chip .lbl { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; }
+
+  /* ── NEW: Algorithm info pill ── */
+  .algo-info {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.5rem 0.8rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.8rem;
+    font-size: 0.75rem;
+  }
+  .algo-info .algo-name { font-weight: 700; color: var(--text-primary); }
+  .algo-info .algo-type { color: var(--text-muted); }
+  .algo-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 99px;
+  }
+  .tag-blue   { background: var(--accent-blue-lt); color: var(--accent-blue); }
+  .tag-teal   { background: var(--accent-teal-lt); color: var(--accent-teal); }
+  .tag-amber  { background: var(--accent-amber-lt); color: var(--accent-amber); }
+
+  /* ── NEW: CPU utilization bar ── */
+  .util-bar-wrap { margin-top: 0.8rem; }
+  .util-bar-label { display: flex; justify-content: space-between; font-size: 0.73rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+  .util-bar-track { height: 8px; background: var(--bg-input); border-radius: 99px; overflow: hidden; }
+  .util-bar-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #2563EB, #0D9488); transition: width 0.4s ease; }
+
+  hr { border: none; height: 1px; background: var(--border); margin: 0.8rem 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">⚙ Operating Systems</div>
+  <h1>CPU <span>Scheduling</span> Simulator</h1>
+  <p>FCFS &nbsp;·&nbsp; SJF / SRTF &nbsp;·&nbsp; MLFQ &nbsp;·&nbsp; Step-by-step walkthrough</p>
+</div>
+
+<div class="dashboard">
+
+  <!-- ── LEFT ── -->
+  <div class="control-panel">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon blue">📋</div>
+        <span class="card-title">Process list</span>
+      </div>
+      <table class="proc-table" id="procTable">
+        <thead>
+          <tr><th>PID</th><th>Arrival</th><th>Burst</th><th></th></tr>
+        </thead>
+        <tbody id="procBody"></tbody>
+      </table>
+      <div class="row-btns">
+        <button class="btn btn-sm" id="addProcBtn">+ Add process</button>
+        <button class="btn btn-sm" id="resetProcBtn">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon teal">⚙️</div>
+        <span class="card-title">Algorithm &amp; Settings</span>
+      </div>
+      <select id="algoSelect">
+        <option value="fcfs">First Come First Served (FCFS)</option>
+        <option value="sjf">Shortest Job First – Preemptive (SRTF)</option>
+        <option value="mlfq">Multilevel Feedback Queue (MLFQ)</option>
+      </select>
+      <div id="mlfqParams" style="display:none;">
+        <div class="mlfq-grid">
+          <label class="mlfq-label">Queues <input type="number" id="mlfqQueues" value="3" min="1" max="4"></label>
+          <label class="mlfq-label">Quantum Q0 <input type="number" id="q0" value="2"></label>
+          <label class="mlfq-label">Quantum Q1 <input type="number" id="q1" value="4"></label>
+          <label class="mlfq-label">Quantum Q2 <input type="number" id="q2" value="8"></label>
+        </div>
+        <div class="aging-row">Aging threshold: <input type="number" id="agingThr" value="6"> <span style="font-size:0.72rem;color:var(--text-muted)">(0 = off)</span></div>
+      </div>
+      <button class="btn btn-primary" id="simulateBtn">▶&nbsp; Run Simulation</button>
+      <button class="btn btn-secondary" id="stepModeBtn">🎬&nbsp; Enable Step-by-Step Mode</button>
+    </div>
+
+    <div class="card" id="mlfqQueueViz" style="display:none;">
+      <div class="card-header">
+        <div class="card-icon amber">📌</div>
+        <span class="card-title">MLFQ Queues (live)</span>
+      </div>
+      <div id="queueVizContainer">—</div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT ── -->
+  <div class="visual-panel">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon blue">📊</div>
+        <span class="card-title">Gantt Chart</span>
+        <div id="algoInfoPill" style="margin-left:auto;"></div>
+      </div>
+
+      <!-- NEW: Metrics bar -->
+      <div class="metrics-bar" id="metricsBar" style="display:none;">
+        <div class="metric-chip">
+          <div class="dot" style="background:#2563EB;"></div>
+          <span class="lbl">Avg Wait</span>
+          <span class="val" id="mAvgWT">—</span>
+        </div>
+        <div class="metric-chip">
+          <div class="dot" style="background:#0D9488;"></div>
+          <span class="lbl">Avg Turnaround</span>
+          <span class="val" id="mAvgTAT">—</span>
+        </div>
+        <div class="metric-chip">
+          <div class="dot" style="background:#7C3AED;"></div>
+          <span class="lbl">CPU Utilization</span>
+          <span class="val" id="mUtil">—</span>
+        </div>
+        <div class="metric-chip">
+          <div class="dot" style="background:#D97706;"></div>
+          <span class="lbl">Throughput</span>
+          <span class="val" id="mThrough">—</span>
+        </div>
+      </div>
+
+      <div class="gantt-wrapper">
+        <canvas id="ganttCanvas" width="800" height="140"></canvas>
+      </div>
+
+      <!-- CPU utilization bar -->
+      <div class="util-bar-wrap" id="utilBarWrap" style="display:none;">
+        <div class="util-bar-label">
+          <span>CPU Utilization</span>
+          <span id="utilPct">0%</span>
+        </div>
+        <div class="util-bar-track">
+          <div class="util-bar-fill" id="utilBarFill" style="width:0%;"></div>
+        </div>
+      </div>
+
+      <div class="step-controls" id="stepControls" style="display:none;">
+        <button class="btn-ctrl" id="playBtn">▶ Play</button>
+        <button class="btn-ctrl" id="pauseBtn">⏸ Pause</button>
+        <button class="btn-ctrl" id="prevStepBtn">◀ Prev</button>
+        <button class="btn-ctrl" id="nextStepBtn">Next ▶</button>
+        <div class="slider-wrap">
+          <input type="range" id="stepSlider" min="0" max="0" value="0" step="1">
+        </div>
+        <span class="step-label" id="stepLabel">0 / 0</span>
+      </div>
+
+      <div class="explanation-box" id="explanationBox">
+        💡 Click <strong style="color:#60A5FA">Run Simulation</strong> then <strong style="color:#34D399">Enable Step-by-Step Mode</strong> to walk through each decision.
+      </div>
+
+      <div class="stat-grid" id="statsGrid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ── Process data ── */
+let processes = [
+  { pid: 1, arrival: 0, burst: 5 },
+  { pid: 2, arrival: 1, burst: 3 },
+  { pid: 3, arrival: 2, burst: 2 }
+];
+
+const PID_COLORS = [
+  '#2563EB','#0D9488','#7C3AED','#D97706',
+  '#E11D48','#0891B2','#65A30D','#9333EA','#EA580C'
+];
+function pidColor(pid) { return PID_COLORS[(pid-1) % PID_COLORS.length]; }
+
+function renderProcTable() {
+  const tbody = document.getElementById('procBody');
+  tbody.innerHTML = '';
+  processes.forEach((p, idx) => {
+    const row = tbody.insertRow();
+    const c = pidColor(p.pid);
+    row.insertCell(0).innerHTML = `<span class="pid-badge" style="background:${c}">P${p.pid}</span>`;
+    ['arrival','burst'].forEach(field => {
+      const td = row.insertCell(-1);
+      const inp = document.createElement('input');
+      inp.type='number'; inp.value=p[field];
+      inp.onchange = e => { processes[idx][field] = parseInt(e.target.value) || (field==='burst'?1:0); };
+      td.appendChild(inp);
+    });
+    const td = row.insertCell(-1);
+    const db = document.createElement('button');
+    db.textContent='✕'; db.className='btn-danger-sm';
+    db.onclick = () => { processes.splice(idx,1); renderProcTable(); };
+    td.appendChild(db);
+  });
+}
+document.getElementById('addProcBtn').onclick = () => {
+  let pid = processes.length ? Math.max(...processes.map(p=>p.pid))+1 : 1;
+  processes.push({pid, arrival:0, burst:2});
+  renderProcTable();
+};
+document.getElementById('resetProcBtn').onclick = () => {
+  processes = [{pid:1,arrival:0,burst:5},{pid:2,arrival:1,burst:3},{pid:3,arrival:2,burst:2}];
+  renderProcTable();
+};
+renderProcTable();
+
+const algoSel = document.getElementById('algoSelect');
+algoSel.addEventListener('change', () => {
+  document.getElementById('mlfqParams').style.display = algoSel.value==='mlfq' ? 'block' : 'none';
+});
+
+/* ── Global state ── */
+let currentTrace=[], currentStepIndex=0, stepModeActive=false, animationInterval=null, lastGanttSegments=[];
+
+/* ── Draw Gantt ── */
+function drawGantt(segments, highlightPid=null, currentTimeMarker=null) {
+  const canvas = document.getElementById('ganttCanvas');
+  if (!segments.length) return;
+  const maxTime = Math.max(...segments.map(s=>s.end), 1);
+  const W = canvas.parentElement.clientWidth - 16;
+  canvas.width = W; canvas.height = 140;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,140);
+  const L = 30, R = 20, scale = (W - L - R) / maxTime;
+  const yBase = 32, barH = 56;
+
+  /* time axis ticks */
+  ctx.strokeStyle = '#D0DAE8'; ctx.lineWidth = 0.5;
+  for (let t=0; t<=maxTime; t++) {
+    let tx = L + t*scale;
+    ctx.beginPath(); ctx.moveTo(tx, yBase+barH); ctx.lineTo(tx, yBase+barH+4); ctx.stroke();
+  }
+
+  segments.forEach((seg, i) => {
+    const {pid, start, end} = seg;
+    const x = L + start*scale, w = Math.max((end-start)*scale, 1);
+    const isHighlight = pid === highlightPid;
+    const isIdle = pid === -1;
+
+    if (isIdle) {
+      ctx.fillStyle = '#F1F5F9';
+      ctx.strokeStyle = '#CBD5E1';
+    } else {
+      const hex = pidColor(pid);
+      ctx.fillStyle = isHighlight ? hex : hex + 'BB';
+      ctx.strokeStyle = hex;
+    }
+    ctx.lineWidth = isHighlight ? 2.5 : 1;
+
+    ctx.beginPath();
+    roundRect(ctx, x, yBase, w, barH, 6);
+    ctx.fill(); ctx.stroke();
+
+    if (isHighlight) {
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath(); roundRect(ctx, x+1, yBase+1, w-2, barH/2-1, 5); ctx.fill();
+    }
+
+    ctx.fillStyle = isIdle ? '#94A3B8' : '#FFFFFF';
+    ctx.font = `bold 11px 'JetBrains Mono', monospace`;
+    const label = isIdle ? 'idle' : `P${pid}`;
+    if (w > label.length * 8) ctx.fillText(label, x+7, yBase+barH-14);
+
+    ctx.fillStyle = '#94A3B8'; ctx.font = '9px monospace';
+    if (i===0 || segments[i-1].end!==start) ctx.fillText(start, x-3, yBase+barH+14);
+    if (i===segments.length-1) ctx.fillText(end, x+w-6, yBase+barH+14);
+  });
+
+  if (currentTimeMarker !== null && currentTimeMarker <= maxTime) {
+    const mx = L + currentTimeMarker*scale;
+    ctx.beginPath(); ctx.moveTo(mx, yBase-8); ctx.lineTo(mx, yBase+barH+10);
+    ctx.strokeStyle = '#E11D48'; ctx.lineWidth = 2; ctx.setLineDash([4,3]); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#E11D48'; ctx.font='bold 9px monospace';
+    ctx.fillText(`t=${currentTimeMarker}`, mx+4, yBase-10);
+  }
+
+  ctx.fillStyle = '#94A3B8'; ctx.font = '9px monospace';
+  ctx.fillText('0', L-6, yBase+barH+14);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+/* ── FCFS ── */
+function generateFCFSTrace(procs) {
+  let sorted=[...procs].sort((a,b)=>a.arrival-b.arrival), t=0, ganttSegments=[], trace=[];
+  for (let p of sorted) {
+    if (t<p.arrival) {
+      ganttSegments.push({pid:-1,start:t,end:p.arrival});
+      trace.push({time:p.arrival,description:`CPU idle from <span class="hi">${t}</span> → <span class="hi">${p.arrival}</span>`,pid:-1,ganttSegments:[...ganttSegments]});
+      t=p.arrival;
+    }
+    let s=t; t+=p.burst;
+    ganttSegments.push({pid:p.pid,start:s,end:t});
+    trace.push({time:s,description:`<span class="hi">P${p.pid}</span> runs <span class="hi">${s}</span> → <span class="hi">${t}</span> (burst ${p.burst})`,pid:p.pid,ganttSegments:[...ganttSegments]});
+  }
+  return {trace, ganttSegments};
+}
+
+/* ── SJF / SRTF ── */
+function generateSJFTrace(procs) {
+  let n=procs.length, remaining=procs.map(p=>p.burst), completed=0, time=0, trace=[], ganttSegments=[], lastPid=-1, segStart=0;
+  while (completed<n) {
+    let idx=-1, minR=Infinity;
+    for (let i=0;i<n;i++) if (remaining[i]>0 && procs[i].arrival<=time && remaining[i]<minR) { minR=remaining[i]; idx=i; }
+    if (idx===-1) {
+      let nxt=Math.min(...procs.filter((_,i)=>remaining[i]>0).map(p=>p.arrival));
+      if (!isFinite(nxt)) break;
+      if (lastPid!==-1) { ganttSegments.push({pid:lastPid,start:segStart,end:time}); lastPid=-1; }
+      ganttSegments.push({pid:-1,start:time,end:nxt});
+      trace.push({time:nxt,description:`CPU idle <span class="hi">${time}</span> → <span class="hi">${nxt}</span>`,pid:-1,ganttSegments:[...ganttSegments]});
+      time=nxt; continue;
+    }
+    if (lastPid!==procs[idx].pid && lastPid!==-1) { ganttSegments.push({pid:lastPid,start:segStart,end:time}); segStart=time; }
+    if (lastPid!==procs[idx].pid) segStart=time;
+    lastPid=procs[idx].pid;
+    remaining[idx]--; time++;
+    let desc=`<span class="hi">P${procs[idx].pid}</span> runs (remaining <span class="hi">${remaining[idx]}</span>) ${time-1} → ${time}`;
+    if (remaining[idx]===0) { ganttSegments.push({pid:procs[idx].pid,start:segStart,end:time}); desc+=` — <span class="ok">finishes</span>`; lastPid=-1; completed++; }
+    trace.push({time,description:desc,pid:procs[idx].pid,ganttSegments:[...ganttSegments]});
+  }
+  return {trace, ganttSegments};
+}
+
+/* ── MLFQ ── */
+function generateMLFQTrace(procs, numQueues, quanta, aging) {
+  let n=procs.length, remaining=procs.map(p=>p.burst), queueLevels=new Array(n).fill(0), agingCnt=new Array(n).fill(0);
+  let queues=Array.from({length:numQueues},()=>[]), time=0, completed=0, trace=[], ganttSegments=[], lastPid=-1, segStart=0;
+  let sortedByArr=[...procs].map((p,i)=>({idx:i,arr:p.arrival})).sort((a,b)=>a.arr-b.arr), nextArrIdx=0;
+  function addArrivals(now) {
+    while (nextArrIdx<n && sortedByArr[nextArrIdx].arr<=now) {
+      let idx=sortedByArr[nextArrIdx].idx;
+      queues[0].push(idx); queueLevels[idx]=0;
+      trace.push({time:now,description:`<span class="hi">P${procs[idx].pid}</span> arrives t=${now} → Q0`,pid:-2,ganttSegments:[...ganttSegments],queueSnapshot:queues.map(q=>[...q])});
+      nextArrIdx++;
+    }
+  }
+  addArrivals(0);
+  while (completed<n) {
+    if (aging>0) {
+      for (let lvl=1;lvl<numQueues;lvl++) {
+        let nQ=[];
+        for (let idx of queues[lvl]) {
+          agingCnt[idx]++;
+          if (agingCnt[idx]>=aging) {
+            let nl=Math.max(0,lvl-1); queues[nl].push(idx); queueLevels[idx]=nl; agingCnt[idx]=0;
+            trace.push({time,description:`Aging: <span class="hi">P${procs[idx].pid}</span> promoted Q${lvl}→Q${nl}`,pid:-2,ganttSegments:[...ganttSegments],queueSnapshot:queues.map(q=>[...q])});
+          } else nQ.push(idx);
+        }
+        queues[lvl]=nQ;
+      }
+    }
+    let selIdx=-1, selLvl=-1;
+    for (let lvl=0;lvl<numQueues;lvl++) if (queues[lvl].length>0) { selLvl=lvl; selIdx=queues[lvl].shift(); break; }
+    if (selIdx===-1) {
+      let nextTime=nextArrIdx<n?sortedByArr[nextArrIdx].arr:Infinity;
+      if (!isFinite(nextTime)) break;
+      if (lastPid!==-1) { ganttSegments.push({pid:lastPid,start:segStart,end:time}); lastPid=-1; }
+      ganttSegments.push({pid:-1,start:time,end:nextTime});
+      trace.push({time:nextTime,description:`CPU idle <span class="hi">${time}</span> → <span class="hi">${nextTime}</span>`,pid:-1,ganttSegments:[...ganttSegments]});
+      time=nextTime; addArrivals(time); continue;
+    }
+    agingCnt[selIdx]=0;
+    if (lastPid!==procs[selIdx].pid && lastPid!==-1) { ganttSegments.push({pid:lastPid,start:segStart,end:time}); }
+    lastPid=procs[selIdx].pid; segStart=time;
+    let quantum=quanta[selLvl]||2, exec=Math.min(quantum,remaining[selIdx]), startTime=time;
+    for (let u=0;u<exec;u++) { remaining[selIdx]--; time++; if(remaining[selIdx]===0) break; }
+    let desc=`<span class="hi">P${procs[selIdx].pid}</span> runs Q${selLvl} (q=${quantum}): <span class="hi">${startTime}</span> → <span class="hi">${time}</span>`;
+    if (remaining[selIdx]===0) {
+      desc+=` — <span class="ok">completes</span>`; completed++;
+      ganttSegments.push({pid:procs[selIdx].pid,start:segStart,end:time}); lastPid=-1;
+    } else {
+      let nl=exec===quantum?Math.min(numQueues-1,selLvl+1):selLvl;
+      queues[nl].push(selIdx); queueLevels[selIdx]=nl;
+      desc+=exec===quantum?` → demoted to <span class="hi">Q${nl}</span>`:` → preempted, back to Q${selLvl}`;
+      ganttSegments.push({pid:procs[selIdx].pid,start:segStart,end:time}); lastPid=-1;
+    }
+    trace.push({time,description:desc,pid:procs[selIdx].pid,ganttSegments:[...ganttSegments],queueSnapshot:queues.map(q=>[...q])});
+    addArrivals(time);
+  }
+  return {trace, ganttSegments};
+}
+
+/* ── Run Simulation ── */
+function runSimulation() {
+  let procs=[...processes], algo=algoSel.value, result=null;
+  if (algo==='fcfs') result=generateFCFSTrace(procs);
+  else if (algo==='sjf') result=generateSJFTrace(procs);
+  else {
+    let qNum=parseInt(document.getElementById('mlfqQueues').value)||3;
+    let quanta=[]; for(let i=0;i<qNum;i++) { let el=document.getElementById(`q${i}`); quanta.push(el?parseInt(el.value)||2:2); }
+    let aging=parseInt(document.getElementById('agingThr').value)||0;
+    result=generateMLFQTrace(procs,qNum,quanta,aging);
+  }
+  currentTrace=result.trace; lastGanttSegments=result.ganttSegments;
+
+  /* Compute stats */
+  let lastSeen=new Array(procs.length).fill(-1);
+  for (let seg of lastGanttSegments) if (seg.pid!==-1) { let i=procs.findIndex(p=>p.pid===seg.pid); if(i!==-1) lastSeen[i]=seg.end; }
+  let tat=[], wt=[];
+  for (let i=0;i<procs.length;i++) { tat[i]=lastSeen[i]-procs[i].arrival; wt[i]=Math.max(0,tat[i]-procs[i].burst); }
+  let avgWT=(wt.reduce((a,b)=>a+b,0)/procs.length).toFixed(2);
+  let avgTAT=(tat.reduce((a,b)=>a+b,0)/procs.length).toFixed(2);
+  let totalTime=Math.max(...lastGanttSegments.map(s=>s.end),1);
+  let idleTime=lastGanttSegments.filter(s=>s.pid===-1).reduce((a,s)=>a+(s.end-s.start),0);
+  let utilPct=((totalTime-idleTime)/totalTime*100).toFixed(1);
+  let throughput=(procs.length/totalTime).toFixed(2);
+
+  /* NEW: Metrics bar */
+  document.getElementById('metricsBar').style.display='flex';
+  document.getElementById('mAvgWT').textContent=avgWT;
+  document.getElementById('mAvgTAT').textContent=avgTAT;
+  document.getElementById('mUtil').textContent=utilPct+'%';
+  document.getElementById('mThrough').textContent=throughput+'/t';
+
+  /* NEW: Util bar */
+  document.getElementById('utilBarWrap').style.display='block';
+  document.getElementById('utilPct').textContent=utilPct+'%';
+  document.getElementById('utilBarFill').style.width=utilPct+'%';
+
+  /* Algorithm pill */
+  const algoNames = {fcfs:'FCFS',sjf:'SRTF',mlfq:'MLFQ'};
+  const algoTags  = {fcfs:'Non-preemptive',sjf:'Preemptive',mlfq:'Multi-queue'};
+  const tagClass  = {fcfs:'tag-blue',sjf:'tag-teal',mlfq:'tag-amber'};
+  document.getElementById('algoInfoPill').innerHTML=
+    `<span class="algo-tag ${tagClass[algo]}">${algoTags[algo]}</span>`;
+
+  /* Stats grid */
+  let html='';
+  for (let i=0;i<procs.length;i++) {
+    const c=pidColor(procs[i].pid);
+    html+=`<div class="stat-card">
+      <div class="s-label" style="color:${c}">P${procs[i].pid}</div>
+      <div class="s-value">TAT ${tat[i]}</div>
+      <div class="s-sub">WT ${wt[i]} &nbsp;·&nbsp; Finish ${lastSeen[i]}</div>
+    </div>`;
+  }
+  document.getElementById('statsGrid').innerHTML=html;
+  drawGantt(lastGanttSegments);
+}
+
+/* ── Step mode ── */
+function updateStepUI() {
+  if (!stepModeActive || !currentTrace.length) return;
+  const step=currentTrace[currentStepIndex];
+  const slider=document.getElementById('stepSlider');
+  slider.max=currentTrace.length-1; slider.value=currentStepIndex;
+  document.getElementById('stepLabel').textContent=`${currentStepIndex+1} / ${currentTrace.length}`;
+  document.getElementById('explanationBox').innerHTML=
+    `<span class="step-num">STEP ${currentStepIndex+1} / ${currentTrace.length}</span><br>${step.description}`;
+  drawGantt(step.ganttSegments||lastGanttSegments, step.pid>0?step.pid:null, step.time);
+  if (step.queueSnapshot && algoSel.value==='mlfq') {
+    document.getElementById('queueVizContainer').innerHTML=
+      step.queueSnapshot.map((q,i)=>
+        `<div class="queue-row">
+          <span class="queue-label">Q${i}</span>
+          <div>${q.map(idx=>`<span class="q-badge">P${processes[idx].pid}</span>`).join(' ')||'<span style="font-size:0.72rem;color:var(--text-muted)">empty</span>'}</div>
+        </div>`
+      ).join('');
+    document.getElementById('mlfqQueueViz').style.display='block';
+  }
+}
+
+document.getElementById('nextStepBtn').onclick=()=>{ if(stepModeActive&&currentStepIndex<currentTrace.length-1){currentStepIndex++;updateStepUI();} };
+document.getElementById('prevStepBtn').onclick=()=>{ if(stepModeActive&&currentStepIndex>0){currentStepIndex--;updateStepUI();} };
+document.getElementById('playBtn').onclick=()=>{
+  if(animationInterval) clearInterval(animationInterval);
+  animationInterval=setInterval(()=>{ if(currentStepIndex<currentTrace.length-1){currentStepIndex++;updateStepUI();}else clearInterval(animationInterval); },800);
+};
+document.getElementById('pauseBtn').onclick=()=>{ if(animationInterval) clearInterval(animationInterval); };
+document.getElementById('stepSlider').addEventListener('input',e=>{ if(stepModeActive){currentStepIndex=parseInt(e.target.value);updateStepUI();} });
+
+document.getElementById('simulateBtn').onclick=()=>{
+  if(animationInterval) clearInterval(animationInterval);
+  stepModeActive=false;
+  document.getElementById('stepControls').style.display='none';
+  document.getElementById('mlfqQueueViz').style.display='none';
+  runSimulation();
+  document.getElementById('explanationBox').innerHTML=
+    '✅ Simulation complete. Click <strong style="color:#60A5FA">Enable Step-by-Step Mode</strong> to walk through each decision.';
+};
+document.getElementById('stepModeBtn').onclick=()=>{
+  if(!currentTrace.length) runSimulation();
+  stepModeActive=true; currentStepIndex=0;
+  document.getElementById('stepControls').style.display='flex';
+  if(animationInterval) clearInterval(animationInterval);
+  updateStepUI();
+};
+
+window.onload=()=>runSimulation();
+</script>
+</body>
+</html>
